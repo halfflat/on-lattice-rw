@@ -20,7 +20,7 @@ occupancy to admit both if _D(n, x)_ &gt; _D(m, y)_.
 
 The function _D_ is selected from a distribution such that each value _D(n, x)_
 is i.i.d. uniformly over some non-empty real interval. In practice, this
-can be simulated by a counter-based random number generator (@SMDS2011)
+can be simulated by a counter-based random number generator [@SMDS2011]
 keyed on a hash of _n_ and _x_. In the very unlikely advent of a collision
 _D(n, x)_ = _D(m, y)_, the tie can be resolved based on another CRNG evaluation keyed by
 a hash of _n_, _m_, _x_, and _y_ or with presumably negligable bias, simply
@@ -32,23 +32,99 @@ can be maintained which allows early determnination of admissibility.
 
 ## Serial update process
 
-TODO: copy from proposal on Slack
+The working set comprises the domain grid taking as values an array of _P_
+occupancy slots and a set of propagating tips _T_.
 
+Each occupancy slot (_n_, _x_; _F_) has three fields: a neuron id _n_, a
+previous site _x_ (represented by an edge index of the periodic net), and a
+provisional flag _F_. The flag _F_ can take one of four values:
 
-## Parallel update process
+* 'empty', indicating that this slot is unoccupied;
 
-The serial update process can be applied if there is a mutex associated with
+* 'odd', indicating that this slot is provisionally occupied after a
+  time step _t_ with integer _t_ odd.
+
+* 'even', indicating that this slot is provisionally occupied after a
+  time step _t_ with integer _t_ even.
+
+* 'full', indicating that this slot is unprovisionally occupied.
+
+At time step _t_, a slot is regarded as occupied if
+its flag is **full** or it is provisionally occupied with a flag
+that has the opposite parity to that of time _t_. (That is, if _t_
+is for example even, a flag value of **full** or **odd** implies
+the slot is occupied.)
+
+A tip _p_ = (_n_, _x_, _f_, _S_) comprises:
+
+* a neuron id _n_,
+
+* a site (vertex) _x_,
+
+* a former site _f_ (this can be represented by an edge index from _x_),
+
+* and a 'stymied' flag _S_.
+
+The former site value _f_ is ignored if the tip is stymied; the former
+site is in this circumstance regarded as being the same as the site _x_.
+
+Marking _p_ as stymied sets _x_ to _f_ and _S_ to **true**.
+
+At initialization:
+
+1. Initialize the grid by filling each occupancy slot at each site
+   with (0, 0; **empty**); the neuron id 0 is reserved to indicate
+   the absense of a neuron.
+
+2. For each neuron with id _n_ select its starting grid location _x₀_(_n_)
+   and create a corresponding 'tip' _p_ for neuron _n_ at site _x₀_ and
+   unstymied (i.e. _S_ is false). Fill the first occupancy slot at _x₀_
+   with (_n_, _?_; **full**), where _?_ is arbitrary.
+
+For each time step _t_, let _P_ be the parity of _t_ and _Q_ the opposite
+parity, and then consider each tip _p_ = (_n_, _x_, _f_, _S_):
+
+* If _S_ is false, determine if the tip was ejected by a different tip:
+  is there a slot at _x_ with (_n_, _f_; _Q_)? If so, propagation was
+  successful and the slot is updated to (_n_, _f_; **full**). Otherwise
+  the tip was ejected and marked as stymied (i.e. _x_ is set to _f_
+  and _S_ is set to **true** for _p_).
+
+* If _S_ is false, determine if the tip branches based on the occupation
+  status of _x_ and its neighbouts.
+
+* Consider the set of sites neighbouring _x_ which are not completely occupied;
+  if it empty, discard tip _t_. Otherwise, randomly select a site _w_ or two
+  distinct sites _w_ and _w'_ if the tip branches and there are two available
+  such sites. Update tip _p_ ← (_n_, _w_, _x_, **false**); if there is
+  a _w'_, also create a new tip _p'_ = ( _n_, _w'_, _x_, **false**).
+
+* For the tip _p_, perfom the _update operation_ at _w_:
+
+    1. If there is a slot (_n_, _z_; _P_) with the same neuron id _n_:
+       if _D(n, x)_ &lt; _D(n, z)_, mark _p_ as stymied (see above); otherwise,
+       replace the slot with (_n_, _x_; _P_).
+
+    2. Otherwise find the provisional entry (_m_, _z_; _P_) with lowest priority
+       as determined by _D_ (empty slots always have lowest priority) and
+       replace that slot with (_n_, _x_; _P_).
+
+* Perform the same update operation for _p'_ at _w'_.
+
+## Parallel update operation
+
+The serial update operation can be applied if there is a mutex associated with
 each site, and site data is then updated while holding the lock. Alternatively,
 this can also be done lock-free with atomics updates.
 
 For the single occupancy case, this is straightforward:
 
-1. The current occupier (_m_, _y_), if any, is retrieved.
+1. The current occupier (_m_, _y_; _F_), if any, is retrieved.
 
-2. If _D(n, x) &lt; D(m, y)_, mark the tip (_n_, _x_) as stymied and continue.
+2. If the tip has lower priority than the current occupier, mark the tip as stymied and continue.
 
 3. Otherwise, perform a (strong) atomic compare and swap replacing the representation
-   of (_m_, _y_) with that of (_n_, _x_); on failure, retry from step 1.
+   of (_m_, _y_; _F_) with that of (_n_, _x_; _P_); on failure, retry from step 1.
 
 For multiple occupancy, a lock-free approach is more involved. The following
 approach is predicated upon the assumption that the maximum occupancy is
@@ -127,7 +203,7 @@ maximum value _N_, source information _x_ and a provisional flag value _F_ can
 be packed into ⌈log₂ _N_⌉ + ⌈log₂ _C_⌉ + 2 bits (for _F_), where _C_ is the
 coordination number (or degree) of the periodic net, as _x_ is represented by
 the edge index spanned by the most recent extension of the neuron into the
-site. The maximum value of _C_ is 12 for the *fcn* net (Table 1, @DFOY2003a),
+site. The maximum value of _C_ is 12 for the **fcn** net [see @DFOY2003a, Table 1],
 requiring 4 bits, but all other regular and semi-regular nets have _C_ ≤ 8.
 
 For single occupancy representations then, and reserving two ids to represent
