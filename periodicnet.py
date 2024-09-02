@@ -1,4 +1,5 @@
 import enum
+import math
 import numpy as np
 
 class PeriodicNet:
@@ -45,51 +46,52 @@ class PeriodicNet:
             if self.inv_edges[r]==-1:
                 raise Exception("couldn't find inverse edge")
 
-    _r3 = math.sqrt(3)
-    _r2 = math.sqrt(2)
 
-    # Predefined 2-periodic nets
+# Predefined 2-periodic nets
 
-    # Honeycomb regular 3-net
-    hcb = PeriodicNet(
-            np.array([0, 0, 0, 1], [0, 0, -1, 1], [0, -1, 0, 1],
-                     [1, 0, 0, 0], [1, 0, 1, 0], [1, 1, 0, 0]),
-            np.array([0.5, 0.5/_r3], [1, 1.0/_r3]),
-            np.array([1, 0], [0.5, _r3/2]))
+_r3 = math.sqrt(3)
+_r2 = math.sqrt(2)
 
-    # Square regular 4-net
-    sql = PeriodicNet(
-            np.array([[0, 1, 0, 0], [0, 0, 1, 0], [0, -1, 0, 0], [0, 0, -1, 0]]),
-            np.array([[0, 0]]),
-            np.array([[1, 0], [0, 1]]))
+# Honeycomb regular 3-net
+hcb = PeriodicNet(
+        np.array([[0, 0, 0, 1], [0, 0, -1, 1], [0, -1, 0, 1],
+                  [1, 0, 0, 0], [1, 0,  1, 0], [1,  1, 0, 0]]),
+        np.array([[0.5, 0.5/_r3], [1, 1.0/_r3]]),
+        np.array([[1, 0], [0.5, _r3/2]]))
 
-    # Triangle-triangle-square irregular 5-net
-    tts = PeriodicNet(
-            np.array([0, 0, 0, 1], [0, 0, 0, 3], [0, -1,  0, 1], [0,  0, -1, 3], [0,  0, -1, 2],
-                     [1, 0, 0, 2], [1, 0, 0, 0], [1,  0, -1, 2], [1,  1,  0, 0], [1,  1,  0, 3],
-                     [2, 0, 0, 3], [2, 0, 0, 1], [2,  1,  0, 3], [2,  0,  1, 1], [2,  0,  1, 0],
-                     [3, 0, 0, 0], [3, 0, 0, 2], [3,  0,  1, 0], [3, -1,  0, 2], [3, -1,  0, 1]),
-            np.array([      _r3/(2*_r2),         1/(2*_r2)],
-                     [(1+2*_r3)/(2*_r2),       _r3/(2*_r2)],
-                     [  (2+_r3)/(2*_r2), (1+2*_r3)/(2*_r2)],
-                     [        1/(2*_r2),   (2+_r3)/(2*_r2)]),
-            np.array([0, (1+_r3)/_r2], [(1+_r3)/_r2, 0]))
+# Square regular 4-net
+sql = PeriodicNet(
+        np.array([[0, 1, 0, 0], [0, 0, 1, 0], [0, -1, 0, 0], [0, 0, -1, 0]]),
+        np.array([[0, 0]]),
+        np.array([[1, 0], [0, 1]]))
 
-    # Hexagonal regular 6-net
-    hxl = PeriodicNet(
-            np.array([[0, 1, 0, 0], [0, 0, 1, 0], [0, -1, 1, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 1, -1, 0]]),
-            np.array([[0, 0]]),
-            np.array([1, 0], [0.5, _r3/2]))
+# Triangle-triangle-square irregular 5-net
+tts = PeriodicNet(
+        np.array([[0, 0, 0, 1], [0, 0, 0, 3], [0, -1,  0, 1], [0,  0, -1, 3], [0,  0, -1, 2],
+                  [1, 0, 0, 2], [1, 0, 0, 0], [1,  0, -1, 2], [1,  1,  0, 0], [1,  1,  0, 3],
+                  [2, 0, 0, 3], [2, 0, 0, 1], [2,  1,  0, 3], [2,  0,  1, 1], [2,  0,  1, 0],
+                  [3, 0, 0, 0], [3, 0, 0, 2], [3,  0,  1, 0], [3, -1,  0, 2], [3, -1,  0, 1]]),
+        np.array([[      _r3/(2*_r2),         1/(2*_r2)],
+                  [(1+2*_r3)/(2*_r2),       _r3/(2*_r2)],
+                  [  (2+_r3)/(2*_r2), (1+2*_r3)/(2*_r2)],
+                  [        1/(2*_r2),   (2+_r3)/(2*_r2)]]),
+        np.array([[0, (1+_r3)/_r2], [(1+_r3)/_r2, 0]]))
+
+# Hexagonal regular 6-net
+hxl = PeriodicNet(
+        np.array([[0, 1, 0, 0], [0, 0, 1, 0], [0, -1, 1, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 1, -1, 0]]),
+        np.array([[0, 0]]),
+        np.array([[1, 0], [0.5, _r3/2]]))
 
 
-    # Predefined 3-periodic nets
-    # TODO:
-    # Laves graph regular 3-net srs
-    # Diamond regular 4-net dia
-    # NbO regular 4-net nbo
-    # Cubic regular 6-net pcu
-    # Body-centred cubic regular 8-net bcu
-    # Face-centred cubic quasiregular 12-net fcu
+# Predefined 3-periodic nets
+# TODO:
+# Laves graph regular 3-net srs
+# Diamond regular 4-net dia
+# NbO regular 4-net nbo
+# Cubic regular 6-net pcu
+# Body-centred cubic regular 8-net bcu
+# Face-centred cubic quasiregular 12-net fcu
 
 class Domain:
     # Given a PeriodicNet _net_, a tuple _shape_ describing the extent, and a
@@ -128,7 +130,7 @@ class Domain:
         if self._net.dimension != len(shape):
             raise Exception("shape is wrong dimension")
 
-        if self._net.n_edges>64:
+        if self._net.degree>64:
             raise Exception("only supporting up to degree 64 with packed representation")
 
         # make domain but fill boundary with boundary marker
@@ -137,7 +139,7 @@ class Domain:
         pad[-2:] = [(0,0), (0,0)]
 
         self._pad_offset = np.ones((len(inner),), dtype=np.int32)
-        self._pad_offset[-2, -1] = [0, 0]
+        self._pad_offset[-2:] = [0, 0]
 
         self._domain = np.pad(np.zeros(inner, dtype=np.uint32), pad, mode='constant', constant_values=Domain.BORDER)
 
@@ -160,6 +162,7 @@ class Domain:
 
     # Return occupant in given slot in the domain at vertex, or all occupants at vertex if slot is None.
     def get(self, vertex, slot = None):
+        if isinstance(vertex, tuple): vertex = np.array(vertex, dtype=np.uint32)
         index = vertex + self._pad_offset[:-1]
         if slot is None:
             return self._domain[tuple(index)+(slice(None),)]
@@ -168,6 +171,7 @@ class Domain:
 
     # Update occupant at slot in the domain at vertex with packed value, or all occupants with array of packed values if slot is None.
     def put(self, vertex, occupant, slot = None):
+        if isinstance(vertex, tuple): vertex = np.array(vertex, dtype=np.uint32)
         index = vertex + self._pad_offset[:-1]
         if slot is None:
             self._domain[tuple(index)+(slice(None),)] = occupant
@@ -175,12 +179,15 @@ class Domain:
             self._domain[tuple(index)+(slot,)] = occupant
 
     def traverse(self, vertex, edge_index):
-        return vertex + self._net.edges[edge_index,1:]
+        if isinstance(vertex, tuple): vertex = np.array(vertex, dtype=np.uint32)
+        u = vertex + self._net.edges[edge_index,1:-1]
+        u[-1] = self._net.edges[edge_index,-1]
+        return u
 
     def position(self, vertex):
-        index = vertex + self._pad_offset[:-1]
-        return self._net.positions[unpad[-1]] + np.matmul(unpad[:self.config.dimension], self._net.translations)
+        if isinstance(vertex, tuple): vertex = np.array(vertex, dtype=np.uint32)
+        return self._net.positions[vertex[-1]] + np.matmul(vertex[:self._net.dimension], self._net.translations)
 
-    def is_border(self, vertex);
+    def is_border(self, vertex):
         return get(self, vertex, 0)==BORDER
 
