@@ -3,6 +3,8 @@ import math
 import numpy as np
 
 class PeriodicNet:
+    # represents a periodic net of uniform degree (i.e. regular as a graph).
+
     def __init__(self, edges, positions, translations):
         # edges is an integer numpy array with one row per edge.
         # Each row has the format:
@@ -11,20 +13,19 @@ class PeriodicNet:
         # are the translations to the corresponding neighbouring
         # unit cell. Edges are in order of vertex-index.
 
-        self.edges = edges.copy()
-        self.positions = positions.copy()
-        self.translations = translations.copy()
+        self.edges = np.asarray(edges, dtype=np.int32)
+        self.positions = np.asarray(positions, dtype=np.double)
+        self.translations =np.asarray(translations, dtype=np.double)
 
         self.n_vertices = edges[:,0].max()+1
         self.degree =  np.uint32(edges.shape[0]/self.n_vertices)
         self.dimension = edges.shape[1]-2
 
-        if (positions.shape != (self.n_vertices, self.dimension)):
+        if (self.positions.shape != (self.n_vertices, self.dimension)):
             raise Exception("Bad position array")
 
-        if (translations.shape != (self.dimension, self.dimension)):
+        if (self.translations.shape != (self.dimension, self.dimension)):
             raise Exception("Bad position array")
-
 
         # compute inverse edge map from vertex 0; then verify
         # for other points.
@@ -45,6 +46,26 @@ class PeriodicNet:
                     break
             if self.inv_edges[r]==-1:
                 raise Exception("couldn't find inverse edge")
+
+    def edges_from(self, vertex_index):
+        offset = vertex_index*self.degree;
+        return self.edges[offset:offset+self.degree]
+
+    def edge_indices_from(self, vertex_index):
+        offset = vertex_index*self.degree;
+        return np.arange(offset, offset+self.degree, dtype=np.uint32)
+
+    # Below, coord is a tuple or array denoting a vertex in the tesselation.
+    # coord is of length dimension+1; the last component denotes the vertex index.
+
+    def position(self, coord):
+        coord = np.asarray(coord)
+        return self.positions[coord[-1]] + np.matmul(coord[:self.dimension], self.translations)
+
+    def traverse(self, coord, edge_index):
+        u = np.asarray(coord) + self.edges[edge_index,1:]
+        u[-1] = self.edges[edge_index,-1]
+        return u
 
 
 # Predefined 2-periodic nets
@@ -75,7 +96,7 @@ tts = PeriodicNet(
                   [(1+2*_r3)/(2*_r2),       _r3/(2*_r2)],
                   [  (2+_r3)/(2*_r2), (1+2*_r3)/(2*_r2)],
                   [        1/(2*_r2),   (2+_r3)/(2*_r2)]]),
-        np.array([[0, (1+_r3)/_r2], [(1+_r3)/_r2, 0]]))
+        np.array([[(1+_r3)/_r2, 0], [0, (1+_r3)/_r2]]))
 
 # Hexagonal regular 6-net
 hxl = PeriodicNet(
@@ -162,8 +183,7 @@ class Domain:
 
     # Return occupant in given slot in the domain at vertex, or all occupants at vertex if slot is None.
     def get(self, vertex, slot = None):
-        if isinstance(vertex, tuple): vertex = np.array(vertex, dtype=np.uint32)
-        index = vertex + self._pad_offset[:-1]
+        index = np.asarray(vertex) + self._pad_offset[:-1]
         if slot is None:
             return self._domain[tuple(index)+(slice(None),)]
         else:
@@ -171,23 +191,19 @@ class Domain:
 
     # Update occupant at slot in the domain at vertex with packed value, or all occupants with array of packed values if slot is None.
     def put(self, vertex, occupant, slot = None):
-        if isinstance(vertex, tuple): vertex = np.array(vertex, dtype=np.uint32)
-        index = vertex + self._pad_offset[:-1]
+        index = np.asarray(vertex) + self._pad_offset[:-1]
         if slot is None:
             self._domain[tuple(index)+(slice(None),)] = occupant
         else:
             self._domain[tuple(index)+(slot,)] = occupant
 
     def traverse(self, vertex, edge_index):
-        if isinstance(vertex, tuple): vertex = np.array(vertex, dtype=np.uint32)
-        u = vertex + self._net.edges[edge_index,1:-1]
-        u[-1] = self._net.edges[edge_index,-1]
-        return u
+        return self._net.traverse(vertex, edge_index)
 
     def position(self, vertex):
-        if isinstance(vertex, tuple): vertex = np.array(vertex, dtype=np.uint32)
-        return self._net.positions[vertex[-1]] + np.matmul(vertex[:self._net.dimension], self._net.translations)
+        return self._net.position(vertex)
 
     def is_border(self, vertex):
-        return get(self, vertex, 0)==BORDER
+        index = np.asarray(vertex) + self._pad_offset[:-1]
+        return self.get(vertex, 0)==self.BORDER
 
