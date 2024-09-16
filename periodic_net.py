@@ -134,7 +134,8 @@ class Domain:
     # internal domain array.
     #
     # The array holds 32-bit values representing the (packed) information
-    # describing each occupant.
+    # describing each occupant: the neuron id (24 bits); occupancy class
+    # (2 bits); and previous edge index (6 bits).
 
     BORDER = np.invert(np.uint32(0))
     OCCUPANT_DTYPE = np.dtype([('nid', np.uint32), ('occupancy', np.uint8), ('prev', np.uint8)])
@@ -164,6 +165,12 @@ class Domain:
 
         self._domain = np.pad(np.zeros(inner, dtype=np.uint32), pad, mode='constant', constant_values=Domain.BORDER)
 
+        # pre-calculate offsets, shifts for computing vertex index hashes
+        self._vext = self._domain.shape[:-1]
+        self._vdim = len(self._vext)
+        self._hw = np.asarray([0]+[int(k-1).bit_length() for k in self._vext])
+        self._ho = self._hw.cumsum()
+
     # Return extent, excluding the padded boundaries and occupancy axis.
     def extent():
         return (_domain.shape() - _pad_offset*2)[:-1]
@@ -180,6 +187,16 @@ class Domain:
 
     def pack(unpacked):
         return np.array(np.left_shift(unpacked.nid, 8) + np.left_shift(unpacked.occupancy, 6) + unpacked.prev, dtype=np.uint32)
+
+    # Convert vertex index to and from packed bit representation
+    def vertex_hash(self, vertex):
+        return (np.asarray(vertex) << self._ho[:-1]).sum()
+
+    def vertex_unhash(self, h):
+        return (h >> self._ho[:-1]) & ((1 << self._hw[1:]) - 1)
+
+    def vertex_hash_bits(self):
+        return self._ho[-1]
 
     # Return occupant in given slot in the domain at vertex, or all occupants at vertex if slot is None.
     def get(self, vertex, slot = None):

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import argparse as ap
 import numpy as np
 import periodic_net as P
