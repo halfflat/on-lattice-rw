@@ -172,11 +172,10 @@ class Domain:
         self._ho = self._hw.cumsum()
 
     # Return extent, excluding the padded boundaries and occupancy axis.
-    def extent():
-        return (_domain.shape() - _pad_offset*2)[:-1]
+    def extent(self):
+        return (self._domain.shape - self._pad_offset*2)[:-1]
 
-    def max_occupancy():
-        return self._mo
+    max_occupancy = property(lambda self: self._mo)
 
     def unpack(packed):
         u = np.recarray(packed.shape, dtype=Domain.OCCUPANT_DTYPE)
@@ -187,6 +186,12 @@ class Domain:
 
     def pack(unpacked):
         return np.array(np.left_shift(unpacked.nid, 8) + np.left_shift(unpacked.occupancy, 6) + unpacked.prev, dtype=np.uint32)
+
+    def flip(occupancy):
+        match occupancy:
+            case Occupancy.EVEN: return Occupancy.ODD
+            case Occupancy.ODD:  return Occupancy.EVEN
+            case _: return occupancy
 
     # Convert vertex index to and from packed bit representation
     def vertex_hash(self, vertex):
