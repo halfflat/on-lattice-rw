@@ -178,7 +178,7 @@ class Domain:
         Returns True if every slot has occupancy FULL or opposite of _parity_.
         """
         up = Domain.unpack(self.get(vertex))
-        return not ((up.occupancy == Occupancy.FULL) | (up.occupancy == parity.flip())).any()
+        return ((up.occupancy == Occupancy.FULL) | (up.occupancy == parity.flip())).all()
 
     def neighbours(self, vertex):
         """Non-border neighbours [(u,e)] of vertex with u = traverse(vertex, e) which do not hold nid"""
@@ -187,7 +187,7 @@ class Domain:
     def neighbours_excluding(self, vertex, nid, parity):
         """Non-border neighbours [(u,e)] of vertex with u = traverse(vertex, e)"""
         return [(u, e) for e in self._net.edge_indices_from(vertex[-1]) for u in [self.traverse(vertex, e)] if not self.is_border(u)
-                and not self.has_nid(v, nid, parity)]
+                and not self.has_nid(u, nid, parity)]
 
     def open_neighbours_excluding(self, vertex, nid, parity):
         """Non-border neighbours [(u,e)] of vertex which are not full and do

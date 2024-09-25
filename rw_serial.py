@@ -185,6 +185,8 @@ class State:
         for i, tip1 in enumerate(self._tips):
             self.initial[i,:] = np.asarray(tip1[0].vertex, dtype=np.uint32)
 
+    domain = property(lambda self: self._domain)
+
     def step(self, final = False):
         self._t += 1
 
@@ -268,7 +270,7 @@ class State:
 
         parity = Occupancy.parity(t)
         tip = ts[j]
-        neighbours = self._domain.neighbours_eccluding(tip.vertex, nid, parity)
+        neighbours = self._domain.neighbours_excluding(tip.vertex, nid, parity)
 
         if not neighbours:
             # just remove this tip
@@ -276,17 +278,16 @@ class State:
             del ts[-1]
             return
 
-        bg = self._propagation_generator(nid, self._domain.vertex_hash(vertex), t)
+        bg = self._propagation_generator(nid, self._domain.vertex_hash(tip.vertex), t)
         k = random_integer(bg, len(neighbours))
         (u, e) = neighbours[k]
 
-        if not self._domain.is_full(tip.vertex, parity):
+        if not self._domain.is_full(u, parity):
             match self._domain.occupy(u, nid, parity, e):
                 case (_, s): ts[j] = State.Tip(vertex=u, prev=e, slot=s)
                 case None:   ts[j] = State.Tip.stymied(tip.vertex)
         else:
             # Brannch: select two destinations from open neighbours.
-
             neighbours = self._domain.open_neighbours_excluding(tip.vertex, nid, parity)
             if not neighbours:
                 # remove tip and return
