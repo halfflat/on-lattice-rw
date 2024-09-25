@@ -61,7 +61,7 @@ class Domain:
 
         self._mo = max_occupancy;
         self._net = net
-        slef._priority_fn = priority
+        self._priority_fn = priority
 
         if self._net.dimension != len(shape):
             raise Exception("shape is wrong dimension")
@@ -77,19 +77,25 @@ class Domain:
         self._pad_offset = np.ones((len(inner),), dtype=np.int32)
         self._pad_offset[-2:] = [0, 0]
 
-        self._domain = np.pad(np.zeros(inner, dtype=np.uint32), pad, mode='constant', constant_values=Domain.BORDER)
+        self._array = np.pad(np.zeros(inner, dtype=np.uint32), pad, mode='constant', constant_values=Domain.BORDER)
 
         # pre-calculate offsets, shifts for computing vertex index hashes
-        self._vext = self._domain.shape[:-1]
+        self._vext = self._array.shape[:-1]
         self._vdim = len(self._vext)
         self._hw = np.asarray([0]+[int(k-1).bit_length() for k in self._vext])
         self._ho = self._hw.cumsum()
 
     # Return extent, excluding the padded boundaries and occupancy axis.
-    extent = property(lambda self: (self._domain.shape - self._pad_offset*2)[:-1])
+    extent = property(lambda self: (self._array.shape - self._pad_offset*2)[:-1])
+
+    # Use vertex with coordinates matching extent to indicate a dummy vertex
+    no_vertex = property(lambda self: self.extent)
 
     # Return number of occupancy slots per vertex
     max_occupancy = property(lambda self: self._mo)
+
+    # Access to underlying net
+    net = property(lambda self: self._net)
 
     def priority(self, nid, vertex_or_hash):
         if isinstance(vertex_or_hash, numbers.Integral):
@@ -120,22 +126,24 @@ class Domain:
     def get(self, vertex, slot = None):
         index = np.asarray(vertex) + self._pad_offset[:-1]
         if slot is None:
-            return self._domain[tuple(index)+(slice(None),)]
+            return self._array[tuple(index)+(slice(None),)]
         else:
-            return self._domain[tuple(index)+(slot,)]
+            return self._array[tuple(index)+(slot,)]
 
     # Update occupant at slot in the domain at vertex with packed value, or all occupants with array of packed values if slot is None.
     def put(self, vertex, occupant, slot = None):
         index = np.asarray(vertex) + self._pad_offset[:-1]
         if slot is None:
-            self._domain[tuple(index)+(slice(None),)] = occupant
+            self._array[tuple(index)+(slice(None),)] = occupant
         else:
-            self._domain[tuple(index)+(slot,)] = occupant
+            self._array[tuple(index)+(slot,)] = occupant
 
     def traverse(self, vertex, edge_index):
+        if edge_index == Domain.NOEDGE: return self.no_vertex
         return self._net.traverse(vertex, edge_index)
 
     def traverse_r(self, vertex, edge_index):
+        if edge_index == Domain.NOEDGE: return self.no_vertex
         return self._net.traverse_r(vertex, edge_index)
 
     def position(self, vertex):
@@ -173,14 +181,19 @@ class Domain:
         return not ((up.occupancy == Occupancy.FULL) | (up.occupancy == parity.flip())).any()
 
     def neighbours(self, vertex):
-        """Non-border neighbours [(u,e)] of vertex with u = traverse(vertex, e)."""
-        return [(u, e) for e in self._net.edge_indices_from(vertex[-1]) for u in [self.traverse(vertex, e)] if not self._is_border(u)]
+        """Non-border neighbours [(u,e)] of vertex with u = traverse(vertex, e) which do not hold nid"""
+        return [(u, e) for e in self._net.edge_indices_from(vertex[-1]) for u in [self.traverse(vertex, e)] if not self.is_border(u)]
 
-    def open_neighbours_excluding(self, vertex, nid):
+    def neighbours_excluding(self, vertex, nid, parity):
+        """Non-border neighbours [(u,e)] of vertex with u = traverse(vertex, e)"""
+        return [(u, e) for e in self._net.edge_indices_from(vertex[-1]) for u in [self.traverse(vertex, e)] if not self.is_border(u)
+                and not self.has_nid(v, nid, parity)]
+
+    def open_neighbours_excluding(self, vertex, nid, parity):
         """Non-border neighbours [(u,e)] of vertex which are not full and do
            not hold nid with u = traverse(vertex, e)."""
         return [(u, e) for e in self._net.edge_indices_from(vertex[-1]) for u in [self.traverse(vertex, e)] if not self.is_border(u)
-                and not self.is_full(v) and not self.has_nid(nid)]
+                and not self.is_full(u, parity) and not self.has_nid(u, nid, parity)]
 
     def occupy(self, vertex, nid, parity, prev):
         """
@@ -198,7 +211,7 @@ class Domain:
         occupancy slot was occupied.
         """
 
-        up = Domain.unpack(self._domain.get(vertex))
+        up = Domain.unpack(self.get(vertex))
         slot = None   # or (slot index, slot priority)
 
         for j in range(self._mo):
@@ -210,16 +223,18 @@ class Domain:
                     break
 
             if up[j].occupancy == parity:
-                p = self.priority(up[j].nid, self._domain.traverse_r(vertex, up[j].prev))
+                p = self.priority(up[j].nid, self.traverse_r(vertex, up[j].prev))
                 if slot is None or p <= slot[1]:
                     slot = (j, p)
-            elif up[j].occupancy = Occupancy.EMPTY:
-                slot = (j, 0)
+            elif up[j].occupancy == Occupancy.EMPTY:
+                match slot:
+                    case (_, 0): pass
+                    case _: slot = (j, 0)
 
         if slot is not None:
             (s, p) = slot
             evict = up[s].nid
-            q = self.priority(nid, self._domain.traverse_r(vertex, prev))
+            q = self.priority(nid, self.traverse_r(vertex, prev))
 
             if (q, nid) > (p, evict):
                 up[s] = (nid, parity, prev)
@@ -241,5 +256,5 @@ class Domain:
             return False
         else:
             u.occupancy = Occupancy.FULL
-            self.put(vertex, slot, Domain.pack(u))
+            self.put(vertex, Domain.pack(u), slot)
             return True

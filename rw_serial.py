@@ -4,7 +4,7 @@
 # 3. Run specified number of steps or until exhaustion:
 #    For each tip:
 #        a. Resolve stymied status.
-#        b. Collect neighbor state.
+#        b. Collect neighbour state.
 #        c. Determine growth/branch behaviour.
 #        d. Grow tip(s):
 #             i.   If site has a vacancy, update tip state and fill vacancy;
@@ -26,7 +26,6 @@ from collections import namedtuple
 import numpy as np
 import periodic_net as pn
 from rw_domain import Domain, Occupancy
-
 
 class Philox:
     """
@@ -105,7 +104,7 @@ def mk_initial_random_vertex(domain, seed):
     hasher = Philox(seed, Philox.INITIAL_SITE)
     def f(nid, attempt):
         hasher.set_counter((nid<<64)+(attempt<<32))
-        return random_integer(hasher.bit_generator, domain.extent())
+        return random_integer(hasher.bit_generator, domain.extent)
     return f
 
 
@@ -120,10 +119,10 @@ class State:
 
     class Tip(namedtuple('Tip', ['vertex', 'prev', 'slot'])):
         def is_stymied(self):
-            return self.slot is None
+            return self.prev==Domain.NOEDGE
 
         def stymied(vertex):
-            return Tip(vertex=vertex, prev=Domain.NOEDGE, slot=None)
+            return State.Tip(vertex=vertex, prev=Domain.NOEDGE, slot=None)
 
     def __init__(self, n_neurons, net, shape, max_occupancy, seed = 0):
         """
@@ -150,7 +149,7 @@ class State:
         for i in range(0, self._n):
             nid = i + 1
             v = random_vertex(nid, attempt)
-            match self.occupy(v, nid, Domain.Occupancy.EVEN, Domain.NOEDGE):
+            match self._domain.occupy(v, nid, Occupancy.EVEN, Domain.NOEDGE):
                 case (0, slot):
                     self._tips[nid-1] = [State.Tip(vertex=v, prev=Domain.NOEDGE, slot=slot)]
                 case (evicted, slot):
@@ -165,7 +164,8 @@ class State:
             del retry[-1]
             for attempt in range(1,State.MAX_INITIAL_RETRY+1):
                 v = random_vertex(nid, attempt)
-                match self.occupy(v, nid, Domain.Occupancy.EVEN, Domain.NOEDGE):
+                print(v)
+                match self._domain.occupy(v, nid, Occupancy.EVEN, Domain.NOEDGE):
                     case (0, slot):
                         self._tips[nid-1] = [State.Tip(vertex=v, prev=Domain.NOEDGE, slot=slot)]
                         break
@@ -181,13 +181,12 @@ class State:
 
         # Keep a copy of initial neuron sites so that neuron morphology can be reconstructed.
 
-        self.initial = np.array((nid, len(_domain.extent)), dtype=np.uint32)
-        for i, tip in enumerate(self._tips):
-            self.initial[i,:] = np.asarray(tip.vertex, dtype=np.uint32)
+        self.initial = np.empty((nid, len(self._domain.extent)), dtype=np.uint32)
+        for i, tip1 in enumerate(self._tips):
+            self.initial[i,:] = np.asarray(tip1[0].vertex, dtype=np.uint32)
 
-    def step:
+    def step(self, final = False):
         self._t += 1
-        parity = Occupancy.parity(self._t)
 
         n_exhausted = 0
         for i in range(0, self._n):
@@ -203,26 +202,25 @@ class State:
                 if not tip.is_stymied():
                     if not self._domain.resolve_provisional(tip.vertex, tip.slot, nid, tip.prev):
                         assert tip.prev != Domain.NOEDGE
-                        ts[j] = Tip.stymied(self._domain.traverse_r(tip.vertex, tip.prev))
+                        ts[j] = State.Tip.stymied(self._domain.traverse_r(tip.vertex, tip.prev))
 
-                if self._multiple_occupancy:
-                    self.step_mo(parity, nid, ts, j)
-                else:
-                    self.step_so(parity, nid, ts, j)
+                if final: continue
+                if self._multiple_occupancy: self.step_mo(self._t, nid, ts, j)
+                else:                        self.step_so(self._t, nid, ts, j)
 
             if not self._tips[i]: n_exhausted += 1
-
         return n_exhausted != self._n
 
-    def step_mo(parity, nid, ts, j):
+    def step_mo(self, t, nid, ts, j):
         # mo > 1 case:
         # 1. Branch if tip is not stymied and site has shared occupancy.
         # 2. Select and propagte to new sites from neighbours which are (provisionally)
         #    not full and which are not already occupied by same nid.
 
+        parity = Occupancy.parity(t)
         tip = ts[j]
         branch = not tip.stymied() and self._domain.has_other_nid(tip.vertex, nid, parity)
-        neighbours = self._domain.open_neighbours_excluding(tip.vertex, nid)
+        neighbours = self._domain.open_neighbours_excluding(tip.vertex, nid, parity)
 
         if not neighbours:
             # just remove this tip
@@ -234,7 +232,7 @@ class State:
         if len(neighbours)==1:
             k = 0
         else:
-            bg = self._propagation_generator(nid, self._domain.vertex_hash(vertex), t)
+            bg = self._propagation_generator(nid, self._domain.vertex_hash(tip.vertex), t)
             k = random_integer(bg, len(neighbours))
 
         (u, e) = neighbours[k]
@@ -257,7 +255,7 @@ class State:
             case (_, s): ts.append(State.Tip(vertex=u, prev=e, slot=s))
             case None:   ts.append(State.Tip.stymied(tip.vertex))
 
-    def step_so(parity, nid, ts, j):
+    def step_so(self, t, nid, ts, j):
         # mo == 1 case:
         # 1. Select new site from neighbours which are not already occupied
         #    by same nid.
@@ -268,5 +266,47 @@ class State:
         #    Otherwise:
         #    3. Propagate to new site.
 
+        parity = Occupancy.parity(t)
         tip = ts[j]
-        ...
+        neighbours = self._domain.neighbours_eccluding(tip.vertex, nid, parity)
+
+        if not neighbours:
+            # just remove this tip
+            ts[j] = ts[-1]
+            del ts[-1]
+            return
+
+        bg = self._propagation_generator(nid, self._domain.vertex_hash(vertex), t)
+        k = random_integer(bg, len(neighbours))
+        (u, e) = neighbours[k]
+
+        if not self._domain.is_full(tip.vertex, parity):
+            match self._domain.occupy(u, nid, parity, e):
+                case (_, s): ts[j] = State.Tip(vertex=u, prev=e, slot=s)
+                case None:   ts[j] = State.Tip.stymied(tip.vertex)
+        else:
+            # Brannch: select two destinations from open neighbours.
+
+            neighbours = self._domain.open_neighbours_excluding(tip.vertex, nid, parity)
+            if not neighbours:
+                # remove tip and return
+                ts[j] = ts[-1]
+                del ts[-1]
+                return
+
+            k = random_integer(bg, len(neighbours))
+            (u, e) = neighbours[k]
+            match self._domain.occupy(u, nid, parity, e):
+                case (_, s): ts[j] = State.Tip(vertex=u, prev=e, slot=s)
+                case None:   ts[j] = State.Tip.stymied(tip.vertex)
+
+            if len(neighbours) == 1:
+                return
+
+            neighbours[k] = neighbours[-1]
+            k = random_integer(bg, len(neighbours)-1)
+            (u, e) = neighbours[k]
+            match self._domain.occupy(u, nid, parity, e):
+                case (_, s): ts[j] = State.Tip(vertex=u, prev=e, slot=s)
+                case None:   ts[j] = State.Tip.stymied(tip.vertex)
+
