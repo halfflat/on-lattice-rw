@@ -108,3 +108,17 @@ hxl = PeriodicNet(
         np.array([[0, 0]]),
         np.array([[1, 0], [0.5, _r3/2]]))
 
+# Predefined 3-periodic nets
+# TODO:
+# Laves graph regular 3-net srs
+# Diamond regular 4-net dia
+# NbO regular 4-net nbo
+
+# Cubic regular 6-net pcu
+pcu = PeriodicNet(
+        np.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, -1, 0, 0, 0], [0, 0, -1, 0, 0], [0, 0, 0, -1, 0]]),
+        np.array([[0, 0, 0]]),
+        np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]))
+
+# Body-centred cubic regular 8-net bcu
+# Face-centred cubic quasiregular 12-net fcu

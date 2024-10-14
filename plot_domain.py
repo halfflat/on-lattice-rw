@@ -8,6 +8,7 @@ import sys
 
 def c0(vs): return [v[0] for v in vs]
 def c1(vs): return [v[1] for v in vs]
+def c2(vs): return [v[2] for v in vs]
 def ce(vs): return [v[-1] for v in vs]
 
 class vdC_colorscale:
@@ -102,10 +103,18 @@ def plot_domain(domain, colorscale='rainbow'):
             traces.append(pgo.Scatter(x=c0(vv), y=c1(vv), mode='markers', marker=dict(symbol='circle', size=6, color=cmap(n)), hoverinfo='skip'))
         for n, ee in nes.items():
             traces.append(pgo.Scatter(x=c0(ee), y=c1(ee), mode='lines', line=dict(width=1, color=cmap(n)), hoverinfo='skip'))
-
         return pgo.Figure(data=traces)
     elif dim == 3:
-        return None
+        traces = []
+        # net vertices and edges
+        traces.append(pgo.Scatter3d(x=c0(vs), y=c1(vs), z=c2(vs), mode='markers', marker=dict(symbol='circle', size=2), hoverinfo='skip'))
+        traces.append(pgo.Scatter3d(x=c0(es), y=c1(es), z=c2(es), mode='lines', line=dict(width=1, dash='dot'), hoverinfo='skip'))
+        # neuron vertices and edges
+        for n, vv in nvs.items():
+            traces.append(pgo.Scatter3d(x=c0(vv), y=c1(vv), z=c2(vv), mode='markers', marker=dict(symbol='circle', size=6, color=cmap(n)), hoverinfo='skip'))
+        for n, ee in nes.items():
+            traces.append(pgo.Scatter3d(x=c0(ee), y=c1(ee), z=c2(ee), mode='lines', line=dict(width=2, color=cmap(n)), hoverinfo='skip'))
+        return pgo.Figure(data=traces)
     else:
         return None
 

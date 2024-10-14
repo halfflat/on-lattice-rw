@@ -44,10 +44,11 @@ def plot_net(net, extent):
     if net.dimension == 2:
         trace_v = pgo.Scatter(x=vs[:,0], y=vs[:,1], mode='markers', marker=dict(symbol='circle'), hoverinfo='skip')
         trace_e = pgo.Scatter(x=es[:er,0], y=es[:er,1], mode='lines', line=dict(width=1), hoverinfo='skip')
-
         return pgo.Figure(data=[trace_v, trace_e])
     elif net.dimension == 3:
-        return None
+        trace_v = pgo.Scatter3d(x=vs[:,0], y=vs[:,1], z=vs[:,2], mode='markers', marker=dict(symbol='circle'), hoverinfo='skip')
+        trace_e = pgo.Scatter3d(x=es[:er,0], y=es[:er,1], z=es[:er,2], mode='lines', line=dict(width=1), hoverinfo='skip')
+        return pgo.Figure(data=[trace_v, trace_e])
     else:
         return None
 
