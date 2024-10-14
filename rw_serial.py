@@ -89,14 +89,14 @@ def mk_priority_fn(seed):
     """Construct a priority funciton f(nid, vtx_hash) for Domain."""
     hasher = Philox(seed, Philox.PRIORITY)
     def f(nid, vtx_hash):
-        return hasher((nid<<64)+vtx_hash)
+        return hasher((int(nid)<<64)+int(vtx_hash))
     return f
 
 def mk_propagation_generator(seed):
     """Construct a funciton g(nid, vtx_hash, t) returning a BitGenerator."""
     p = Philox(seed, Philox.PROPAGATION)
     def g(nid, vtx_hash, t):
-        p.set_counter((t<<96)+(nid<<72)+(vtx_hash<<8))
+        p.set_counter((int(t)<<96)+(int(nid)<<72)+(int(vtx_hash)<<8))
         return p.bit_generator
     return g
 
