@@ -164,7 +164,6 @@ class State:
             del retry[-1]
             for attempt in range(1,State.MAX_INITIAL_RETRY+1):
                 v = random_vertex(nid, attempt)
-                print(v)
                 match self._domain.occupy(v, nid, Occupancy.EVEN, Domain.NOEDGE):
                     case (0, slot):
                         self._tips[nid-1] = [State.Tip(vertex=v, prev=Domain.NOEDGE, slot=slot)]
@@ -221,7 +220,7 @@ class State:
 
         parity = Occupancy.parity(t)
         tip = ts[j]
-        branch = not tip.stymied() and self._domain.has_other_nid(tip.vertex, nid, parity)
+        branch = not tip.is_stymied() and self._domain.has_other_nid(tip.vertex, nid, parity)
         neighbours = self._domain.open_neighbours_excluding(tip.vertex, nid, parity)
 
         if not neighbours:
