@@ -178,6 +178,14 @@ class State:
             else:
                 raise Exception("unable to place neuron {}".format(nid))
 
+        # Remove provisional status from tip occupancies.
+
+        for i in range(0, self._n):
+            nid = i + 1
+            tip = self._tips[i][0]
+            success = self._domain.resolve_provisional(tip.vertex, tip.slot, nid, tip.prev)
+            assert success
+
         # Keep a copy of initial neuron sites so that neuron morphology can be reconstructed.
 
         self.initial = np.empty((nid, len(self._domain.extent)), dtype=np.uint32)
